@@ -1,0 +1,21 @@
+name = "synapse-turn-broker"
+main = "src/index.js"
+compatibility_date = "2024-12-01"
+
+# KV namespace for TURN credential caching
+# Create with: wrangler kv namespace create TURN_CACHE
+# Then paste the binding ID below.
+[[kv_namespaces]]
+binding = "TURN_CACHE"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+
+# Secrets (set via dashboard or: wrangler secret put <NAME>)
+#   BROKER_TOKEN        — Bearer token Synapse uses to authenticate
+#   CF_TURN_KEY_ID      — Cloudflare TURN key ID
+#   CF_TURN_API_TOKEN   — Cloudflare TURN API token
+
+# Optional env vars (uncomment to override defaults)
+# [vars]
+# CF_TURN_BASE_URL = "https://rtc.live.cloudflare.com/v1"
+# MAX_TTL = "3600"
+# BUCKET_SEC = "30"
