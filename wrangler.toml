@@ -1,6 +1,6 @@
 name = "synapse-turn-broker"
 main = "src/index.js"
-compatibility_date = "2024-12-01"
+compatibility_date = "2026-04-05"
 
 # KV namespace for TURN credential caching
 # Create with: wrangler kv namespace create TURN_CACHE
