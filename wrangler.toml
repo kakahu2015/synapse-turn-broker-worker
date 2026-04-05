@@ -7,7 +7,7 @@ compatibility_date = "2026-04-05"
 # Then paste the binding ID below.
 [[kv_namespaces]]
 binding = "TURN_CACHE"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "70bb098741ae4ca1a26799020b8c1eb1"
 
 # Secrets (set via dashboard or: wrangler secret put <NAME>)
 #   BROKER_TOKEN        — Bearer token Synapse uses to authenticate
