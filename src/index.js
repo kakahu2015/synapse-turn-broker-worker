@@ -30,14 +30,15 @@ export default {
       return new Response("Not Found", { status: 404 });
     }
 
-    // Auth
+    // Auth — BROKER_TOKEN is required; fail closed if misconfigured
     const token = env.BROKER_TOKEN;
-    if (token) {
-      const authHeader = request.headers.get("Authorization") || "";
-      const provided = authHeader.replace(/^Bearer\s+/i, "");
-      if (!timingSafeEqual(provided, token)) {
-        return new Response("Unauthorized", { status: 401 });
-      }
+    if (!token) {
+      return new Response("Server misconfiguration", { status: 500 });
+    }
+    const authHeader = request.headers.get("Authorization") || "";
+    const provided = authHeader.replace(/^Bearer\s+/i, "");
+    if (!timingSafeEqual(provided, token)) {
+      return new Response("Unauthorized", { status: 401 });
     }
 
     // Parse request
@@ -59,7 +60,7 @@ export default {
     // Time bucket key
     const now = Math.floor(Date.now() / 1000);
     const bucket = Math.floor(now / bucketSec);
-    const cacheKey = `turn:${bucket}`;
+    const cacheKey = `turn:${env.CF_TURN_KEY_ID}:${ttl}:${bucket}`;
 
     // Try KV cache first
     let credentials = null;
@@ -79,8 +80,9 @@ export default {
       try {
         credentials = await mintCloudflareTurnCredentials(env, ttl);
       } catch (err) {
+        console.error("upstream failure:", err.message);
         return new Response(
-          JSON.stringify({ error: "upstream failure", detail: err.message }),
+          JSON.stringify({ error: "upstream failure" }),
           { status: 502, headers: { "Content-Type": "application/json" } }
         );
       }
@@ -118,7 +120,12 @@ export default {
 async function mintCloudflareTurnCredentials(env, ttl) {
   const keyId = env.CF_TURN_KEY_ID;
   const apiToken = env.CF_TURN_API_TOKEN;
-  const baseUrl = (env.CF_TURN_BASE_URL || "https://rtc.live.cloudflare.com/v1").replace(/\/+$/, "");
+  const rawBaseUrl = (env.CF_TURN_BASE_URL || "https://rtc.live.cloudflare.com/v1").replace(/\/+$/, "");
+  const ALLOWED_BASE_URLS = ["https://rtc.live.cloudflare.com/v1"];
+  if (!ALLOWED_BASE_URLS.includes(rawBaseUrl)) {
+    throw new Error("CF_TURN_BASE_URL not allowed");
+  }
+  const baseUrl = rawBaseUrl;
 
   if (!keyId || !apiToken) {
     throw new Error("CF_TURN_KEY_ID and CF_TURN_API_TOKEN are required");
@@ -192,10 +199,12 @@ function parseCloudflareTurnResponse(response, ttl) {
  * Constant-time string comparison to prevent timing attacks.
  */
 function timingSafeEqual(a, b) {
-  if (a.length !== b.length) return false;
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  const maxLen = Math.max(a.length, b.length);
+  const pa = a.padEnd(maxLen, "\0");
+  const pb = b.padEnd(maxLen, "\0");
+  let result = a.length === b.length ? 0 : 1;
+  for (let i = 0; i < maxLen; i++) {
+    result |= pa.charCodeAt(i) ^ pb.charCodeAt(i);
   }
   return result === 0;
 }
