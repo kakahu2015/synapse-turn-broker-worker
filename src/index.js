@@ -53,9 +53,9 @@ export default {
     }
 
     const requestedTtl = typeof body.ttl === "number" ? body.ttl : 3600;
-    const maxTtl = parseInt(env.MAX_TTL || "3600", 10);
-    const ttl = Math.min(requestedTtl, maxTtl);
-    const bucketSec = parseInt(env.BUCKET_SEC || "30", 10);
+    const maxTtl = parseInt(env.MAX_TTL || "3600", 10) || 3600;
+    const ttl = Math.min(Math.max(requestedTtl, 1), maxTtl);
+    const bucketSec = parseInt(env.BUCKET_SEC || "30", 10) || 30;
 
     // Time bucket key
     const now = Math.floor(Date.now() / 1000);
@@ -80,7 +80,7 @@ export default {
       try {
         credentials = await mintCloudflareTurnCredentials(env, ttl);
       } catch (err) {
-        console.error("upstream failure:", err.message);
+        console.error("upstream failure");
         return new Response(
           JSON.stringify({ error: "upstream failure" }),
           { status: 502, headers: { "Content-Type": "application/json" } }
@@ -196,15 +196,12 @@ function parseCloudflareTurnResponse(response, ttl) {
 }
 
 /**
- * Constant-time string comparison to prevent timing attacks.
+ * Constant-time string comparison using Web Crypto API.
  */
 function timingSafeEqual(a, b) {
-  const maxLen = Math.max(a.length, b.length);
-  const pa = a.padEnd(maxLen, "\0");
-  const pb = b.padEnd(maxLen, "\0");
-  let result = a.length === b.length ? 0 : 1;
-  for (let i = 0; i < maxLen; i++) {
-    result |= pa.charCodeAt(i) ^ pb.charCodeAt(i);
-  }
-  return result === 0;
+  const enc = new TextEncoder();
+  const aa = enc.encode(a);
+  const ab = enc.encode(b);
+  if (aa.length !== ab.length) return false;
+  return crypto.subtle.timingSafeEqual(aa, ab);
 }
